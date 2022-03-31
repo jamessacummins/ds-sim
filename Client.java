@@ -14,8 +14,11 @@ class Client {
 
     public String test;
 
+    public BufferedReader reader;
+    public DataOutputStream dataOutputStream;
+
     //this method writes a messages to an output stream then reads from the server back
-    public void writeThenRead(String message, BufferedReader reader, DataOutputStream dataOutputStream){
+    public void writeThenRead(String message){
         try{
             System.out.println("Client says: " + message);
             dataOutputStream.write(message.concat("\n").getBytes());
@@ -44,16 +47,16 @@ class Client {
             Socket socket = new Socket("localhost", port);
 
 
-            DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            writeThenRead("HELO",reader,dataOutputStream);
-            writeThenRead("AUTH James",reader,dataOutputStream);
-            writeThenRead("REDY",reader,dataOutputStream);
-            writeThenRead("GETS Capable 3 700 3800",reader,dataOutputStream);
-            writeThenRead("OK",reader,dataOutputStream);
-            writeThenRead("OK",reader,dataOutputStream);
-            writeThenRead("QUIT",reader,dataOutputStream);
+            writeThenRead("HELO");
+            writeThenRead("AUTH James");
+            writeThenRead("REDY");
+            writeThenRead("GETS Capable 3 700 3800");
+            writeThenRead("OK");
+            writeThenRead("OK");
+            writeThenRead("QUIT");
             
             dataOutputStream.close();
             reader.close();
