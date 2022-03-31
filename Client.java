@@ -16,21 +16,13 @@ class Client {
 
     public BufferedReader reader;
     public DataOutputStream dataOutputStream;
-
-    //this method writes a messages to an output stream then reads from the server back
-    public void writeThenRead(String message){
-        try{
-            System.out.println("Client says: " + message);
-            dataOutputStream.write(message.concat("\n").getBytes());
-            dataOutputStream.flush();
-            while(reader.ready()){
-                serverMessageList.add(reader.readLine());
-                System.out.println("The server says: " + serverMessageList.get(serverMessageList.size()-1));
-            }
-        }
-        catch(Exception e) {
-            System.out.println(e);
-        }
+    
+    public static void main(String[] args) {
+        
+        // instantiating a copy of a Client class so variables can be "non-static"
+        Client nonStaticClient = new Client();
+        nonStaticClient.run(args);
+        
     };
 
     public void run(String[] args){
@@ -69,13 +61,22 @@ class Client {
         }
     }
 
-    public static void main(String[] args) {
-        
-        // instantiating a copy of a Client class so variables can be "non-static"
-        Client nonStaticClient = new Client();
-        nonStaticClient.run(args);
-        
+    //this method writes a messages to an output stream then reads from the server back
+    public void writeThenRead(String message){
+        try{
+            System.out.println("Client says: " + message);
+            dataOutputStream.write(message.concat("\n").getBytes());
+            dataOutputStream.flush();
+            while(reader.ready()){
+                serverMessageList.add(reader.readLine());
+                System.out.println("The server says: " + serverMessageList.get(serverMessageList.size()-1));
+            }
+        }
+        catch(Exception e) {
+            System.out.println(e);
+        }
     };
+
 };
 
 class Server {
