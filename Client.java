@@ -6,12 +6,16 @@ import java.util.ArrayList;
 class Client {
 
     // state variables
-    public static ArrayList<String> serverMessageList = new ArrayList<String>();
-    public static String[] jobn = new String[7];
-    public static String[] data = new String[3];
+
+
+    public ArrayList<String> serverMessageList = new ArrayList<String>();
+    public String[] jobn = new String[7];
+    public String[] data = new String[3];
+
+    public String test;
 
     //this method writes a messages to an output stream then reads from the server back
-    public static void writeThenRead(String message, BufferedReader reader, DataOutputStream dataOutputStream){
+    public void writeThenRead(String message, BufferedReader reader, DataOutputStream dataOutputStream){
         try{
             System.out.println("Client says: " + message);
             dataOutputStream.write(message.concat("\n").getBytes());
@@ -26,8 +30,8 @@ class Client {
         }
     };
 
-    public static void main(String[] args) {
-        System.out.println("Client3 is up and running!"); 
+    public void run(String[] args){
+        System.out.println("Client is up and running!"); 
 
         try{
             int port;
@@ -60,6 +64,14 @@ class Client {
         catch(Exception e) {
             System.out.println(e);
         }
+    }
+
+    public static void main(String[] args) {
+        
+        // instantiating a copy of a Client class so variables can be "non-static"
+        Client nonStaticClient = new Client();
+        nonStaticClient.run(args);
+        
     };
 };
 
