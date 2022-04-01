@@ -9,12 +9,13 @@ class Client {
 
 
     public ArrayList<String> serverMessageList = new ArrayList<String>();
-
+    public ArrayList<Server> currentServersList;
     public Socket socket;
     public BufferedReader reader;
     public DataOutputStream dataOutputStream;
     public int numberOfMessages;
     public Job currentJob;
+    public Server selectedServer;
 
     public static void main(String[] args) {
         
@@ -31,18 +32,24 @@ class Client {
 
             initialise(args);
             connect();
-            
+            while(true){
+                writeThenRead("REDY");
+                System.out.println(getLatestMessage());
+                if(getLatestMessage().equals("NONE") ) {
+                    break;
+                } else if (getLatestMessage().contains("JCPL")){
+                    continue;
+                } else if (getLatestMessage().contains("JOBN")){
+                    getJobInformation();
+                    scheduleCurrentJobWithSelectedServer();
+                    continue;
+                } else {
+                    break;
+                }
+            };
 
-            getJobInformation();
-            /*
             
-            writeThenRead("REDY");
-            writeThenRead("GETS Capable 3 700 3800");
-            writeThenRead("OK");
-            writeThenRead("OK");
             writeThenRead("QUIT");
-            */
-
             dataOutputStream.close();
             reader.close();
             socket.close();
@@ -80,23 +87,57 @@ class Client {
     };
 
     public void getJobInformation(){
-        writeThenRead("REDY");
-        Job job = new Job();
-
-        String[] jobStringArray = getLatestMessageSplit();
-        job.submitTime = Integer.parseInt(jobStringArray[1]);
-        job.jobID = Integer.parseInt(jobStringArray[2]);  
-        job.estRuntime = Integer.parseInt(jobStringArray[3]);  
-        job.core = Integer.parseInt(jobStringArray[4]);  
-        job.memory = Integer.parseInt(jobStringArray[5]);  
-        job.disk = Integer.parseInt(jobStringArray[6]);  
-
-        currentJob = job;
-
-        writeThenRead("GETS Capable " + job.core + " " + job.memory + " " + job.disk);
+        updateCurrentJob();
+        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
         writeThenRead("OK");
         System.out.println("There are " + numberOfMessages + " servers.");
-        
+        updateCurrentServersList();
+        selectedServer = useRoundRobinByCoreToGetServer();
+        System.out.println("Largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("OK");
+    }
+    
+    public void scheduleCurrentJobWithSelectedServer(){
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
+    }
+
+    public void updateCurrentJob(){
+        currentJob = new Job();
+        String[] jobStringArray = getLatestMessageSplit();
+        currentJob.submitTime = Integer.parseInt(jobStringArray[1]);
+        currentJob.jobID = Integer.parseInt(jobStringArray[2]);  
+        currentJob.estRuntime = Integer.parseInt(jobStringArray[3]);  
+        currentJob.core = Integer.parseInt(jobStringArray[4]);  
+        currentJob.memory = Integer.parseInt(jobStringArray[5]);  
+        currentJob.disk = Integer.parseInt(jobStringArray[6]);  
+    }
+
+    public void updateCurrentServersList(){
+        currentServersList = new ArrayList<Server>();
+        for(int i = 0; i < numberOfMessages; i++){
+            String[] serverStringArray = getMessageFromEndSplit(i);
+            Server newServer = new Server();
+            newServer.serverType = serverStringArray[0];
+            newServer.serverID = Integer.parseInt(serverStringArray[1]);
+            newServer.state = serverStringArray[2];
+            newServer.curStartTime = Integer.parseInt(serverStringArray[3]);
+            newServer.core = Integer.parseInt(serverStringArray[4]);
+            newServer.memory = Integer.parseInt(serverStringArray[5]);
+            newServer.disk = Integer.parseInt(serverStringArray[6]);
+            newServer.wJobs = Integer.parseInt(serverStringArray[7]);
+            newServer.rJobs = Integer.parseInt(serverStringArray[8]);
+            currentServersList.add(0, newServer);
+        }
+    }
+    
+    public Server useRoundRobinByCoreToGetServer(){
+        Server result = currentServersList.get(0);
+        for(Server server : currentServersList){
+            if(server.core > result.core){
+                result = server;
+            }
+        };
+        return result;
     }
 
     public String getLatestMessage(){
@@ -106,6 +147,14 @@ class Client {
     public String[] getLatestMessageSplit(){
         return getLatestMessage().split(" ");
     }
+    public String getMessageFromEnd(int offset){
+        return serverMessageList.get(serverMessageList.size()-(1+offset));
+    }
+
+    public String[] getMessageFromEndSplit(int offset){
+        return getMessageFromEnd(offset).split(" ");
+    }
+
     //this method writes a messages to an output stream then reads from the server back
     public void writeThenRead(String message){
         try{
@@ -121,7 +170,7 @@ class Client {
         }
         catch(Exception e) {
             System.out.println(e);
-        }
+        };
     };
 
 };
@@ -135,11 +184,13 @@ class Job {
 }
 
 class Server {
-    String type;
-    int limit;
-    double hourlyRate;
-    int cores;
+    String serverType;
+    int serverID;
+    String state;
+    int curStartTime;
+    int core;
     int memory;
     int disk;
-    int bootupTime;
+    int wJobs;
+    int rJobs;
 }
