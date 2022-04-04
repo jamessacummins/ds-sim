@@ -34,17 +34,13 @@ class MyClient {
 
             initialise(args);
             connect();
-            findLargestTypePopulateLargestServersList();
             while(true){
                 writeThenRead("REDY");
-                System.out.println("The server says: " + getLatestMessage());
                 if(getLatestMessage().equals("NONE") ) {
                     break;
                 } else if (getLatestMessage().contains("JCPL")){
                     continue;
                 } else if (getLatestMessage().contains("JOBN")){
-                    //getJobInformation();
-                    //scheduleCurrentJobWithSelectedServer();
                     getAndScheduleJobToNextLargestServer();
                     continue;
                 } else {
@@ -90,14 +86,21 @@ class MyClient {
         writeThenRead("AUTH " + System.getProperty("user.name"));
     };
 
-    public void findLargestTypePopulateLargestServersList(){
-        if(getLatestMessage().equals("NONE")){ return;};
-        writeThenRead("REDY");
+    public void getAndScheduleJobToNextLargestServer(){
         updateCurrentJob();
         writeThenRead("GETS All");
-        System.out.println("Server says : " + getLatestMessage());
         writeThenRead("OK");
-        updateCurrentServersList();
+        if(largestServersList == null){
+            updateAllServersList();
+            findLargestTypeThenUpdateLargestServersList();
+        };
+        selectedServer = getCurrentLargestServer();
+        System.out.println("Current largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("OK");
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
+    };
+
+    public void findLargestTypeThenUpdateLargestServersList(){
         String largestType = "";
         int largestCoreSize = 0;
         for(Server server: allServersList){
@@ -113,37 +116,7 @@ class MyClient {
             }
         }
         System.out.println("Largest server type is " + largestType + ", there are " + largestServersList.size() + " " + largestType + " servers.");
-        writeThenRead("OK");
-        selectedServer = getCurrentLargestServer();
-        scheduleCurrentJobWithSelectedServer();
     };
-
-    public void getAndScheduleJobToNextLargestServer(){
-        updateCurrentJob();
-        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
-        writeThenRead("OK");
-        System.out.println("There are " + numberOfMessages + " servers.");
-        updateCurrentServersList();
-        selectedServer = getCurrentLargestServer();
-        System.out.println("Current largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
-        writeThenRead("OK");
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
-    };
-
-    public void getJobInformation(){
-        updateCurrentJob();
-        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
-        writeThenRead("OK");
-        System.out.println("There are " + numberOfMessages + " servers.");
-        updateCurrentServersList();
-        selectedServer = useRoundRobinByCoreToGetServer();
-        System.out.println("Largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
-        writeThenRead("OK");
-    }
-    
-    public void scheduleCurrentJobWithSelectedServer(){
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
-    }
 
     public void updateCurrentJob(){
         currentJob = new Job();
@@ -156,7 +129,7 @@ class MyClient {
         currentJob.disk = Integer.parseInt(jobStringArray[6]);  
     }
 
-    public void updateCurrentServersList(){
+    public void updateAllServersList(){
         allServersList = new ArrayList<Server>();
         for(int i = 0; i < numberOfMessages; i++){
             String[] serverStringArray = getMessageFromEndSplit(i);
@@ -174,16 +147,6 @@ class MyClient {
         }
     }
     
-    public Server useRoundRobinByCoreToGetServer(){
-        Server result = allServersList.get(0);
-        for(Server server : allServersList){
-            if(server.core > result.core){
-                result = server;
-            }
-        };
-        return result;
-    }
-
     public Server getCurrentLargestServer(){
         Server result = largestServersList.get(currentServerIndex);
         if(currentServerIndex == largestServersList.size()-1){
