@@ -3,13 +3,14 @@ import java.io.*;
 import java.util.ArrayList;
 
 
-class Client {
+class MyClient {
 
     // state variables
 
 
     public ArrayList<String> serverMessageList = new ArrayList<String>();
-    public ArrayList<Server> currentServersList;
+    public ArrayList<Server> allServersList;
+    public ArrayList<Server> largestServersList;
     public Socket socket;
     public BufferedReader reader;
     public DataOutputStream dataOutputStream;
@@ -20,7 +21,7 @@ class Client {
     public static void main(String[] args) {
         
         // instantiating a copy of a Client class so variables can be "non-static"
-        Client nonStaticClient = new Client();
+        MyClient nonStaticClient = new MyClient();
         nonStaticClient.run(args);
         
     };
@@ -32,9 +33,10 @@ class Client {
 
             initialise(args);
             connect();
+            findLargestTypePopulateLargestServersList();
             while(true){
                 writeThenRead("REDY");
-                System.out.println(getLatestMessage());
+                System.out.println("The server says: " + getLatestMessage());
                 if(getLatestMessage().equals("NONE") ) {
                     break;
                 } else if (getLatestMessage().contains("JCPL")){
@@ -71,7 +73,7 @@ class Client {
                 System.out.println("Running on port " + port);
             } else { port = 6666; };
             
-            socket = new Socket("localhost", port);
+            socket = new Socket("localhost", 50000);
             
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -84,6 +86,31 @@ class Client {
     public void connect(){
         writeThenRead("HELO");
         writeThenRead("AUTH James");
+    };
+
+    public void findLargestTypePopulateLargestServersList(){
+        if(getLatestMessage().equals("NONE")){ return;};
+        writeThenRead("REDY");
+        writeThenRead("GETS All");
+        System.out.println("Server says : " + getLatestMessage());
+        writeThenRead("OK");
+        updateCurrentServersList();
+        String largestType = "";
+        int largestCoreSize = 0;
+        for(Server server: allServersList){
+            if(server.core > largestCoreSize){
+                largestType = server.serverType;
+                largestCoreSize = server.core;
+            }
+        }
+        largestServersList = new ArrayList<Server>();
+        for(Server server: allServersList){
+            if(server.serverType.equals(largestType)){
+                largestServersList.add(server);
+            }
+        }
+        System.out.println("Largest server type is " + largestType + ", there are " + largestServersList.size() + " " + largestType + " servers.");
+        writeThenRead("OK");
     };
 
     public void getJobInformation(){
@@ -113,7 +140,7 @@ class Client {
     }
 
     public void updateCurrentServersList(){
-        currentServersList = new ArrayList<Server>();
+        allServersList = new ArrayList<Server>();
         for(int i = 0; i < numberOfMessages; i++){
             String[] serverStringArray = getMessageFromEndSplit(i);
             Server newServer = new Server();
@@ -126,13 +153,13 @@ class Client {
             newServer.disk = Integer.parseInt(serverStringArray[6]);
             newServer.wJobs = Integer.parseInt(serverStringArray[7]);
             newServer.rJobs = Integer.parseInt(serverStringArray[8]);
-            currentServersList.add(0, newServer);
+            allServersList.add(0, newServer);
         }
     }
     
     public Server useRoundRobinByCoreToGetServer(){
-        Server result = currentServersList.get(0);
-        for(Server server : currentServersList){
+        Server result = allServersList.get(0);
+        for(Server server : allServersList){
             if(server.core > result.core){
                 result = server;
             }
@@ -162,10 +189,16 @@ class Client {
             System.out.println("Client says: " + message);
             dataOutputStream.write(message.concat("\n").getBytes());
             dataOutputStream.flush();
+
+            while(! reader.ready()){
+                continue;
+            }
+
             while(reader.ready()){
                 numberOfMessages++;
-                serverMessageList.add(reader.readLine());
-                System.out.println("The server says: " + getLatestMessage());
+                String serverResponse = reader.readLine();
+                serverMessageList.add(serverResponse);
+                System.out.println("Server says: " + serverResponse);
             }
         }
         catch(Exception e) {
