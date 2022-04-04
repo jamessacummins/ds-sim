@@ -11,6 +11,7 @@ class MyClient {
     public ArrayList<String> serverMessageList = new ArrayList<String>();
     public ArrayList<Server> allServersList;
     public ArrayList<Server> largestServersList;
+    public int currentServerIndex = 0;
     public Socket socket;
     public BufferedReader reader;
     public DataOutputStream dataOutputStream;
@@ -42,8 +43,9 @@ class MyClient {
                 } else if (getLatestMessage().contains("JCPL")){
                     continue;
                 } else if (getLatestMessage().contains("JOBN")){
-                    getJobInformation();
-                    scheduleCurrentJobWithSelectedServer();
+                    //getJobInformation();
+                    //scheduleCurrentJobWithSelectedServer();
+                    getAndScheduleJobToNextLargestServer();
                     continue;
                 } else {
                     break;
@@ -85,12 +87,13 @@ class MyClient {
 
     public void connect(){
         writeThenRead("HELO");
-        writeThenRead("AUTH James");
+        writeThenRead("AUTH " + System.getProperty("user.name"));
     };
 
     public void findLargestTypePopulateLargestServersList(){
         if(getLatestMessage().equals("NONE")){ return;};
         writeThenRead("REDY");
+        updateCurrentJob();
         writeThenRead("GETS All");
         System.out.println("Server says : " + getLatestMessage());
         writeThenRead("OK");
@@ -111,6 +114,20 @@ class MyClient {
         }
         System.out.println("Largest server type is " + largestType + ", there are " + largestServersList.size() + " " + largestType + " servers.");
         writeThenRead("OK");
+        selectedServer = getCurrentLargestServer();
+        scheduleCurrentJobWithSelectedServer();
+    };
+
+    public void getAndScheduleJobToNextLargestServer(){
+        updateCurrentJob();
+        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
+        writeThenRead("OK");
+        System.out.println("There are " + numberOfMessages + " servers.");
+        updateCurrentServersList();
+        selectedServer = getCurrentLargestServer();
+        System.out.println("Current largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("OK");
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
     };
 
     public void getJobInformation(){
@@ -166,6 +183,16 @@ class MyClient {
         };
         return result;
     }
+
+    public Server getCurrentLargestServer(){
+        Server result = largestServersList.get(currentServerIndex);
+        if(currentServerIndex == largestServersList.size()-1){
+            currentServerIndex = 0;
+        } else {
+            currentServerIndex++;
+        }
+        return result;
+    };
 
     public String getLatestMessage(){
         return serverMessageList.get(serverMessageList.size()-1);
