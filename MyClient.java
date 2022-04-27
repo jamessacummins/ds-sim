@@ -8,6 +8,7 @@ class MyClient {
 
     public ArrayList<String> serverMessageList = new ArrayList<String>();
     public ArrayList<Server> allServersList;
+    public ArrayList<Server> capableServersList;
     public ArrayList<Server> largestServersList;
     public int currentServerIndex = 0;
     public Socket socket;
@@ -33,7 +34,7 @@ class MyClient {
 
             initialise(args);
             connect();
-            roundRobin();
+            firstCapable();
             writeThenRead("QUIT");
             dataOutputStream.close();
             reader.close();
@@ -79,6 +80,55 @@ class MyClient {
         writeThenRead("HELO");
         writeThenRead("AUTH " + System.getProperty("user.name"));
     };
+
+    public void firstCapable(){
+        while (true) {
+                writeThenRead("REDY");
+                if (getLatestMessage().equals("NONE")) {
+                    break;
+                } else if (getLatestMessage().contains("JCPL")) {
+                    continue;
+                } else if (getLatestMessage().contains("JOBN")) {
+                    getAndScheduleJobToFirstCapable();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            ;
+    }
+
+    public void getAndScheduleJobToFirstCapable(){
+        updateCurrentJob();
+        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
+        writeThenRead("OK");
+        updateCapableServersList();
+        selectedServer = capableServersList.get(0);
+        print("First capable server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("OK");
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
+    };
+
+    public void updateCapableServersList(){
+        if(capableServersList == null) {
+            capableServersList = new ArrayList<Server>();
+        };
+        capableServersList.clear();
+        for (int i = 0; i < numberOfMessages; i++) {
+            String[] serverStringArray = getMessageFromEndSplit(i);
+            Server newServer = new Server();
+            newServer.serverType = serverStringArray[0];
+            newServer.serverID = Integer.parseInt(serverStringArray[1]);
+            newServer.state = serverStringArray[2];
+            newServer.curStartTime = Integer.parseInt(serverStringArray[3]);
+            newServer.core = Integer.parseInt(serverStringArray[4]);
+            newServer.memory = Integer.parseInt(serverStringArray[5]);
+            newServer.disk = Integer.parseInt(serverStringArray[6]);
+            newServer.wJobs = Integer.parseInt(serverStringArray[7]);
+            newServer.rJobs = Integer.parseInt(serverStringArray[8]);
+            capableServersList.add(0, newServer);
+        }
+    }
 
     public void roundRobin(){
         while (true) {
