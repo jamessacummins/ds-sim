@@ -33,21 +33,7 @@ class MyClient {
 
             initialise(args);
             connect();
-            while (true) {
-                writeThenRead("REDY");
-                if (getLatestMessage().equals("NONE")) {
-                    break;
-                } else if (getLatestMessage().contains("JCPL")) {
-                    continue;
-                } else if (getLatestMessage().contains("JOBN")) {
-                    getAndScheduleJobToNextLargestServer();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            ;
-
+            roundRobin();
             writeThenRead("QUIT");
             dataOutputStream.close();
             reader.close();
@@ -93,6 +79,23 @@ class MyClient {
         writeThenRead("HELO");
         writeThenRead("AUTH " + System.getProperty("user.name"));
     };
+
+    public void roundRobin(){
+        while (true) {
+                writeThenRead("REDY");
+                if (getLatestMessage().equals("NONE")) {
+                    break;
+                } else if (getLatestMessage().contains("JCPL")) {
+                    continue;
+                } else if (getLatestMessage().contains("JOBN")) {
+                    getAndScheduleJobToNextLargestServer();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            ;
+    }
 
     public void getAndScheduleJobToNextLargestServer() {
         updateCurrentJob();
