@@ -1,6 +1,9 @@
 package Client;
 public class Server {
-    String serverType;
+    String type;
+    int  limit;
+    int bootupTime;
+    double hourlyRate;
     int serverID;
     String state;
     int curStartTime;
