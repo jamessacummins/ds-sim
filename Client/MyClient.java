@@ -1,3 +1,5 @@
+package Client;
+
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
@@ -278,14 +280,3 @@ class Job {
     int disk;
 }
 
-class Server {
-    String serverType;
-    int serverID;
-    String state;
-    int curStartTime;
-    int core;
-    int memory;
-    int disk;
-    int wJobs;
-    int rJobs;
-}
