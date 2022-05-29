@@ -12,7 +12,8 @@ public class Server {
     int disk;
     int wJobs;
     int rJobs;
+    int optimiseQuotient;
     public String toString(){
-        return "type: " + type + " limit: " + limit + " bootupTime: " + bootupTime + " hourlyRate: " + hourlyRate + " serverID: " + serverID + " state: " + state;
+        return "type: " + type + " limit: " + limit + " bootupTime: " + bootupTime + " hourlyRate: " + hourlyRate + " serverID: " + serverID + " state: " + state + " wJobs:" + wJobs;
     }
 }

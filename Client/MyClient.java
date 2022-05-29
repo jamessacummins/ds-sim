@@ -137,10 +137,10 @@ class MyClient {
             }
     };
     public Server getOptimisedServer(){
-        Server result = capableServersList.get(0);;
-        for(int i = 1; i < capableServersList.size(); i++){
+        Server result = capableServersList.get(0);
+        for(int i = 1; i < capableServersList.size() / 2; i++){
             Server current = capableServersList.get(i);
-            if(current.hourlyRate < result.hourlyRate){
+            if(current.wJobs < result.wJobs){
                 result = current;
             }
         }
@@ -247,9 +247,11 @@ class MyClient {
         for (int i = 0; i < numberOfMessages; i++) {
             serverStringArray = getMessageFromEndSplit(i);
             server = allServersList.get(0);
+            String targetType = serverStringArray[0];
+            int targetID = Integer.parseInt(serverStringArray[1]);
             for(int j = 0; j < allServersList.size(); j++){
                 server = allServersList.get(j);
-                if(server.type == serverStringArray[0] && server.serverID == Integer.parseInt(serverStringArray[1])) break;
+                if(targetType.equals(server.type) && server.serverID == targetID) break;
             }
             server.state = serverStringArray[2];
             server.curStartTime = Integer.parseInt(serverStringArray[3]);
