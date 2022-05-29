@@ -4,6 +4,7 @@ import Client.*;
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Dictionary;
 import java.util.HashMap;
 
@@ -15,6 +16,7 @@ class MyClient {
     public ArrayList<Server> allServersList;
     public ArrayList<Server> capableServersList = new ArrayList<Server>();
     public ArrayList<Server> largestServersList;
+    public ArrayList<Server> activeServersList = new ArrayList<Server>();
     public int currentServerIndex = 0;
     public Socket socket;
     public BufferedReader reader;
@@ -130,23 +132,131 @@ class MyClient {
                 writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
                 writeThenRead("OK");
                 updateAllServersList();
-                selectedServer = getOptimisedServer();
+                selectedServer = getOptimisedServer3();
                 print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
                 writeThenRead("OK");
                 writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
             }
     };
-    public Server getOptimisedServer(){
-        Server result = capableServersList.get(0);
-        for(int i = 1; i < capableServersList.size() / 2; i++){
-            Server current = capableServersList.get(i);
-            if(current.wJobs < result.wJobs){
-                result = current;
-            }
+    public int waitingJobsThreshold = 1;
+    public Server getOptimisedServer4(){
+        // sort servers by turnaround time
+        capableServersList.sort(reverseCoreComparator);
+        capableServersList.sort(turnaroundComaprator);
+        Server server = capableServersList.get(0);
+        return server;
+    };
+    public Server getOptimisedServer3(){
+        capableServersList.sort(coreComparator);
+        capableServersList.sort(reverseWJobsComparator);
+        Server server = capableServersList.get(capableServersList.size()-1);
+        print("Server core is " + server.core);
+        return capableServersList.get(capableServersList.size()-1);
+    };
+    public Server getOptimisedServer2(){
+        capableServersList.sort(coreComparator);
+        Server current = null;
+        // first check if their is an active, booting or idle server below the threshold.
+        for(int i = capableServersList.size()-1; i >= 0; i--){
+            current = capableServersList.get(i);
+            if(current.state.equals("idle")) return current;
+            if(current.state.equals("active") && current.wJobs < waitingJobsThreshold) return current;
+            if(current.state.equals("booting") && current.wJobs < waitingJobsThreshold) return current;
         }
-        return result;
-    }
+        //then assign it to the first inactive
+        for(int i = capableServersList.size()-1; i >= 0; i--){
+            current = capableServersList.get(i);
+            if(current.state.equals("inactive")) return current;
+        }
+        //if all are active, idle or booting and above waitingJobsThreshold sort by wJobs then push
+        capableServersList.sort(reverseWJobsComparator);
+        return capableServersList.get(capableServersList.size()-1);
+    };
+    public Server getOptimisedServer(){
+        Server currentServer;
+        Server optimisedServer;
+        // first sort capable by cheapest.
+        capableServersList.sort(costComparator);
+        /*
+        // find first active or idle capable servers that has jobs waiting less than threshold
+        for(int i = 0; i < capableServersList.size(); i++){
+            optimisedServer = capableServersList.get(i);
+            if(optimisedServer.state.equals("idle")) return optimisedServer;
+            if(optimisedServer.state.equals("active") && optimisedServer.wJobs < waitingJobsThreshold) return optimisedServer;
+            if(optimisedServer.state.equals("booting") && optimisedServer.wJobs < waitingJobsThreshold) return optimisedServer;
+        }
+        // turn on cheapest inactive server
+        for(int i = 0; i < capableServersList.size(); i++){
+            currentServer = capableServersList.get(i);
+            if(currentServer.state.equals("inactive")){
+                return currentServer;
+            }
+        }        
+        // run on cheapest server
+        for(int i = 0; i < capableServersList.size(); i++){
+            return capableServersList.get(i);
+        }
+        */
+        // if all else fails use first capable
+        return capableServersList.get(0);
+    };
+    public class TurnaroundComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
 
+            int serverATurnaround = 0;
+            if(serverA.state.equals("booting") || serverA.state.equals("inactive")){
+                serverATurnaround += serverA.bootupTime;
+            };
+            serverA.removeOldJobsFromJobTimes();
+            serverATurnaround += serverA.delayTime();
+
+            int serverBTurnaround = 0;
+            if(serverB.state.equals("booting") || serverB.state.equals("inactive")){
+                serverBTurnaround += serverB.bootupTime;
+            };
+            serverB.removeOldJobsFromJobTimes();
+            serverBTurnaround += serverB.delayTime();
+
+            return Integer.compare(serverATurnaround, serverBTurnaround);
+        };
+    }
+    public class ReverseCoreComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
+            return Integer.compare(serverB.core, serverA.core);
+        };
+    }
+    public class CoreComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
+            return Integer.compare(serverA.core, serverB.core);
+        };
+    }
+    public class CostComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
+            return (int) Double.compare(serverA.hourlyRate, serverB.hourlyRate);
+        };
+    }
+    public class WJobsComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
+            return Integer.compare(serverA.wJobs, serverB.wJobs);
+        };
+    }
+    public class ReverseWJobsComparator implements Comparator<Server>{
+        @Override
+        public int compare(Server serverA, Server serverB){
+            return Integer.compare(serverB.wJobs, serverA.wJobs);
+        };
+    }
+    public ReverseCoreComparator reverseCoreComparator = new ReverseCoreComparator();
+    public TurnaroundComparator turnaroundComaprator = new TurnaroundComparator();
+    public CostComparator costComparator = new CostComparator();
+    public WJobsComparator wJobsComparator = new WJobsComparator();
+    public ReverseWJobsComparator reverseWJobsComparator = new ReverseWJobsComparator();
+    public CoreComparator coreComparator = new CoreComparator();
     public void getAndScheduleJobToFirstCapable(){
         updateCurrentJob();
         writeThenRead("GETS All " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);

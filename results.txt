@@ -1,0 +1,8 @@
+java.net.ConnectException: Connection refused (Connection refused)
+Client says: HELO
+java.lang.NullPointerException
+Client says: AUTH james
+java.lang.NullPointerException
+Client says: REDY
+java.lang.NullPointerException
+java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length 0
