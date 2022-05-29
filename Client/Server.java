@@ -12,4 +12,7 @@ public class Server {
     int disk;
     int wJobs;
     int rJobs;
+    public String toString(){
+        return "type: " + type + " limit: " + limit + " bootupTime: " + bootupTime + " hourlyRate: " + hourlyRate + " serverID: " + serverID + " state: " + state;
+    }
 }

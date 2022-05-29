@@ -4,6 +4,8 @@ import Client.*;
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.HashMap;
 
 class MyClient {
 
@@ -11,7 +13,7 @@ class MyClient {
 
     public ArrayList<String> serverMessageList = new ArrayList<String>();
     public ArrayList<Server> allServersList;
-    public ArrayList<Server> capableServersList;
+    public ArrayList<Server> capableServersList = new ArrayList<Server>();
     public ArrayList<Server> largestServersList;
     public int currentServerIndex = 0;
     public Socket socket;
@@ -37,7 +39,7 @@ class MyClient {
 
             initialise(args);
             connect();
-            firstCapable();
+            optimise();
             writeThenRead("QUIT");
             dataOutputStream.close();
             reader.close();
@@ -100,10 +102,54 @@ class MyClient {
             }
             ;
     }
+    public void optimise(){
+        while (true) {
+            writeThenRead("REDY");
+            if (getLatestMessage().equals("NONE")) {
+                break;
+            } else if (getLatestMessage().contains("JCPL")) {
+                continue;
+            } else if (getLatestMessage().contains("JOBN")) {
+                getAndScheduleJobViaOptimisation();
+                continue;
+            } else {
+                break;
+            }
+        }
+        ;
+    }
+    public void getAndScheduleJobViaOptimisation(){
+            updateCurrentJob();
+            if(allServersList == null) {
+                writeThenRead("GETS All");
+                writeThenRead("OK");
+                initialiseAllServersList();
+                writeThenRead("OK");
+            }
+            else {
+                writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
+                writeThenRead("OK");
+                updateAllServersList();
+                selectedServer = getOptimisedServer();
+                print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
+                writeThenRead("OK");
+                writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
+            }
+    };
+    public Server getOptimisedServer(){
+        Server result = capableServersList.get(0);;
+        for(int i = 1; i < capableServersList.size(); i++){
+            Server current = capableServersList.get(i);
+            if(current.hourlyRate < result.hourlyRate){
+                result = current;
+            }
+        }
+        return result;
+    }
 
     public void getAndScheduleJobToFirstCapable(){
         updateCurrentJob();
-        writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
+        writeThenRead("GETS All " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
         writeThenRead("OK");
         updateCapableServersList();
         selectedServer = capableServersList.get(0);
@@ -194,13 +240,41 @@ class MyClient {
         currentJob.memory = Integer.parseInt(jobStringArray[5]);
         currentJob.disk = Integer.parseInt(jobStringArray[6]);
     }
-
-    public void updateAllServersList() {
-        allServersList = new ArrayList<Server>();
+    public void updateAllServersList(){
+        capableServersList.clear();
+        Server server;
+        String[] serverStringArray;
         for (int i = 0; i < numberOfMessages; i++) {
-            String[] serverStringArray = getMessageFromEndSplit(i);
-            Server newServer = new Server();
+            serverStringArray = getMessageFromEndSplit(i);
+            server = allServersList.get(0);
+            for(int j = 0; j < allServersList.size(); j++){
+                server = allServersList.get(j);
+                if(server.type == serverStringArray[0] && server.serverID == Integer.parseInt(serverStringArray[1])) break;
+            }
+            server.state = serverStringArray[2];
+            server.curStartTime = Integer.parseInt(serverStringArray[3]);
+            server.core = Integer.parseInt(serverStringArray[4]);
+            server.memory = Integer.parseInt(serverStringArray[5]);
+            server.disk = Integer.parseInt(serverStringArray[6]);
+            server.wJobs = Integer.parseInt(serverStringArray[7]);
+            server.rJobs = Integer.parseInt(serverStringArray[8]);
+            capableServersList.add(server);
+        };
+    }
+    public void initialiseAllServersList() {
+        allServersList = new ArrayList<Server>();
+        HashMap<String, Server> serverTypeMap = Parser.getTypeMap();
+        Server newServer;
+        Server typeModel;
+        String[] serverStringArray;
+        for (int i = 0; i < numberOfMessages; i++) {
+            serverStringArray = getMessageFromEndSplit(i);
+            newServer = new Server();
             newServer.type = serverStringArray[0];
+            typeModel = serverTypeMap.get(newServer.type);
+            newServer.bootupTime = typeModel.bootupTime;
+            newServer.limit = typeModel.limit;
+            newServer.hourlyRate = typeModel.hourlyRate;
             newServer.serverID = Integer.parseInt(serverStringArray[1]);
             newServer.state = serverStringArray[2];
             newServer.curStartTime = Integer.parseInt(serverStringArray[3]);

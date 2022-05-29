@@ -3,6 +3,9 @@ package Client;
 import Client.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.xml.parsers.*;
 import org.w3c.dom.*;
@@ -12,10 +15,9 @@ public class Parser{
     static DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     static DocumentBuilder  builder;
     public static void main(String[] args) {  
-        ArrayList<Server> list = getServerList();
     };
-    public static ArrayList<Server> getServerList(){
-        ArrayList<Server> serverList = new ArrayList<Server>();
+    public static HashMap<String, Server> getTypeMap(){
+        HashMap<String, Server> serverMap = new HashMap<String, Server>();
         try {
             builder = factory.newDocumentBuilder();
             Document xml = builder.parse(new File("ds-system.xml"));
@@ -25,7 +27,7 @@ public class Parser{
             for(int i = 0; i < serverNodeList.getLength(); i++){
                 Element e = (Element) serverNodeList.item(i);
                 server = parseServer(e);
-                serverList.add(server);
+                serverMap.put(server.type, server);
             }
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
@@ -34,7 +36,7 @@ public class Parser{
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return serverList;
+        return serverMap;
     }
     public static Server parseServer(Element e){
         Server server = new Server();
