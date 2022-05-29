@@ -1,5 +1,6 @@
 package Client;
 
+import Client.*;
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
@@ -106,9 +107,9 @@ class MyClient {
         writeThenRead("OK");
         updateCapableServersList();
         selectedServer = capableServersList.get(0);
-        print("First capable server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
         writeThenRead("OK");
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
     };
 
     public void updateCapableServersList(){
@@ -119,7 +120,7 @@ class MyClient {
         for (int i = 0; i < numberOfMessages; i++) {
             String[] serverStringArray = getMessageFromEndSplit(i);
             Server newServer = new Server();
-            newServer.serverType = serverStringArray[0];
+            newServer.type = serverStringArray[0];
             newServer.serverID = Integer.parseInt(serverStringArray[1]);
             newServer.state = serverStringArray[2];
             newServer.curStartTime = Integer.parseInt(serverStringArray[3]);
@@ -159,9 +160,9 @@ class MyClient {
         }
         ;
         selectedServer = getCurrentLargestServer();
-        print("Current largest server is " + selectedServer.serverType + " " + selectedServer.serverID);
+        print("Current largest server is " + selectedServer.type + " " + selectedServer.serverID);
         writeThenRead("OK");
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.serverType + " " + selectedServer.serverID);
+        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
     };
 
     public void findLargestTypeThenUpdateLargestServersList() {
@@ -169,13 +170,13 @@ class MyClient {
         int largestCoreSize = 0;
         for (Server server : allServersList) {
             if (server.core > largestCoreSize) {
-                largestType = server.serverType;
+                largestType = server.type;
                 largestCoreSize = server.core;
             }
         }
         largestServersList = new ArrayList<Server>();
         for (Server server : allServersList) {
-            if (server.serverType.equals(largestType)) {
+            if (server.type.equals(largestType)) {
                 largestServersList.add(server);
             }
         }
@@ -199,7 +200,7 @@ class MyClient {
         for (int i = 0; i < numberOfMessages; i++) {
             String[] serverStringArray = getMessageFromEndSplit(i);
             Server newServer = new Server();
-            newServer.serverType = serverStringArray[0];
+            newServer.type = serverStringArray[0];
             newServer.serverID = Integer.parseInt(serverStringArray[1]);
             newServer.state = serverStringArray[2];
             newServer.curStartTime = Integer.parseInt(serverStringArray[3]);
@@ -271,12 +272,4 @@ class MyClient {
 
 };
 
-class Job {
-    int submitTime;
-    int jobID;
-    int estRuntime;
-    int core;
-    int memory;
-    int disk;
-}
 

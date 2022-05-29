@@ -12,10 +12,7 @@ public class Parser{
     static DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     static DocumentBuilder  builder;
     public static void main(String[] args) {  
-        Server x = new Server();
-        System.out.println(x.getClass());
         ArrayList<Server> list = getServerList();
-        System.out.println("finished");
     };
     public static ArrayList<Server> getServerList(){
         ArrayList<Server> serverList = new ArrayList<Server>();
@@ -30,7 +27,6 @@ public class Parser{
                 server = parseServer(e);
                 serverList.add(server);
             }
-            System.out.println(serverList.get(0).type);
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         } catch (SAXException e) {
