@@ -1,4 +1,4 @@
-- Python 3.5 (or above) is required to run this program.
+- TEST 3.5 (or above) is required to run this program.
 - Ensure that python3, pip3, and tkinter are installed with `sudo apt install python3 python3-tk python3-pip`
 - Install required packages with `python3 -m pip install --user -r requirements.txt`
 - Generate resource failure and log files with a particular configuration file
