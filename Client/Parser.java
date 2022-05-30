@@ -1,22 +1,21 @@
 package Client;
 
-import Client.*;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Dictionary;
 import java.util.HashMap;
-import java.util.Map;
-
 import javax.xml.parsers.*;
 import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 
-public class Parser{
+/* 
+This class parses an xml file of server information and returns 
+information on each Server back as a HashMap so that Servers can 
+have additional attributes such as hourlyRate 
+*/
+public class Parser {
     static DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-    static DocumentBuilder  builder;
-    public static void main(String[] args) {  
-    };
-    public static HashMap<String, Server> getTypeMap(){
+    static DocumentBuilder builder;
+
+    public static HashMap<String, Server> getTypeMap() {
         HashMap<String, Server> serverMap = new HashMap<String, Server>();
         try {
             builder = factory.newDocumentBuilder();
@@ -24,7 +23,7 @@ public class Parser{
             xml.getDocumentElement().normalize();
             NodeList serverNodeList = xml.getElementsByTagName("server");
             Server server;
-            for(int i = 0; i < serverNodeList.getLength(); i++){
+            for (int i = 0; i < serverNodeList.getLength(); i++) {
                 Element e = (Element) serverNodeList.item(i);
                 server = parseServer(e);
                 serverMap.put(server.type, server);
@@ -38,7 +37,8 @@ public class Parser{
         }
         return serverMap;
     }
-    public static Server parseServer(Element e){
+
+    public static Server parseServer(Element e) {
         Server server = new Server();
         server.type = e.getAttribute("type");
         server.limit = Integer.parseInt(e.getAttribute("limit"));

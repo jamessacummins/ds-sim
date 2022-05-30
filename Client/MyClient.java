@@ -1,23 +1,17 @@
 package Client;
 
-import Client.*;
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Dictionary;
 import java.util.HashMap;
 
 class MyClient {
 
-    // state variables
+    // state variables used by more than one method
 
     public ArrayList<String> serverMessageList = new ArrayList<String>();
     public ArrayList<Server> allServersList;
     public ArrayList<Server> capableServersList = new ArrayList<Server>();
-    public ArrayList<Server> largestServersList;
-    public ArrayList<Server> activeServersList = new ArrayList<Server>();
-    public int currentServerIndex = 0;
     public Socket socket;
     public BufferedReader reader;
     public DataOutputStream dataOutputStream;
@@ -26,6 +20,10 @@ class MyClient {
     public Server selectedServer;
     public Boolean printAllMessages = false;
 
+    /*
+     * this method is the entry point for the application. It insantiates a
+     * non-static version of the class and then calls the run method.
+     */
     public static void main(String[] args) {
 
         // instantiating a copy of a Client class so variables can be "non-static"
@@ -34,6 +32,13 @@ class MyClient {
 
     };
 
+    /*
+     * run handles the main flow of the application. It initialises the connection
+     * with the server, connects with the first few messages, then runs the main
+     * loop which
+     * in this case is "optimise". Finally it closes the connection with the server
+     * application.
+     */
     public void run(String[] args) {
         print("Client is up and running!");
 
@@ -54,6 +59,13 @@ class MyClient {
         }
     }
 
+    /*
+     * Initialise changes the port if it is fed in as a command line variable.
+     * It then changes to verbose mode if fed in as a command line variable
+     * (printing communication to stdout).
+     * Finally it creates the basic boilerplate neccessary to connect to the server
+     * application using a socket.
+     */
     public void initialise(String[] args) {
         try {
             int port = 50000;
@@ -72,7 +84,8 @@ class MyClient {
                     if (args[1].equals("v"))
                         printAllMessages = true;
                 }
-            };
+            }
+            ;
 
             socket = new Socket("localhost", port);
 
@@ -83,28 +96,22 @@ class MyClient {
         }
     };
 
+    /*
+     * Connect is the second method called.
+     * It simply handles the logic of exchanging initial messsages with the server.
+     */
     public void connect() {
         writeThenRead("HELO");
         writeThenRead("AUTH " + System.getProperty("user.name"));
     };
 
-    public void firstCapable(){
-        while (true) {
-                writeThenRead("REDY");
-                if (getLatestMessage().equals("NONE")) {
-                    break;
-                } else if (getLatestMessage().contains("JCPL")) {
-                    continue;
-                } else if (getLatestMessage().contains("JOBN")) {
-                    getAndScheduleJobToFirstCapable();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            ;
-    }
-    public void optimise(){
+    /*
+     * Optimise handles the main logic with a loop.
+     * It runs until the latest message is NONE.
+     * Until then, it schedules jobs when the message from the server is JOBN, and
+     * skips when the message is JCPL.
+     */
+    public void optimise() {
         while (true) {
             writeThenRead("REDY");
             if (getLatestMessage().equals("NONE")) {
@@ -120,226 +127,55 @@ class MyClient {
         }
         ;
     }
-    public void getAndScheduleJobViaOptimisation(){
-            updateCurrentJob();
-            if(allServersList == null) {
-                writeThenRead("GETS All");
-                writeThenRead("OK");
-                initialiseAllServersList();
-                writeThenRead("OK");
-            }
-            else {
-                writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
-                writeThenRead("OK");
-                updateAllServersList();
-                selectedServer = getOptimisedServer3();
-                print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
-                writeThenRead("OK");
-                writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
-            }
+
+    /*
+     * This method when run for the first time GETS all server information, and
+     * parses the server.xml file, and creates a list of servers using the
+     * initialiseAllServersList() method.
+     * It then gets capable servers, updates all servers and runs an algorithm to
+     * get the 'optimised' server. Finally it schedules a job to the optimised
+     * server.
+     */
+    public void getAndScheduleJobViaOptimisation() {
+        updateCurrentJob();
+        if (allServersList == null) {
+            writeThenRead("GETS All");
+            writeThenRead("OK");
+            initialiseAllServersList();
+            writeThenRead("OK");
+        } else {
+            writeThenRead("GETS Capable " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
+            writeThenRead("OK");
+            updateAllServersList();
+            selectedServer = getOptimisedServer();
+            print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
+            writeThenRead("OK");
+            writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
+        }
     };
-    public int waitingJobsThreshold = 1;
-    public Server getOptimisedServer4(){
-        // sort servers by turnaround time
-        capableServersList.sort(reverseCoreComparator);
-        capableServersList.sort(turnaroundComaprator);
-        Server server = capableServersList.get(0);
-        return server;
-    };
-    public Server getOptimisedServer3(){
+
+    /*
+     * This is the crux of the application. All capable servers are first sorted by
+     * size of available cores. Then the list is sorted by how many waiting jobs
+     * there are. Finally the top of the list is popped off. The optimised server
+     * always has the lowest jobs waiting, always is a capable server, and amongst
+     * the aforementioned criteria is the largest server by cores.
+     */
+    public Server getOptimisedServer() {
         capableServersList.sort(coreComparator);
         capableServersList.sort(reverseWJobsComparator);
-        Server server = capableServersList.get(capableServersList.size()-1);
-        print("Server core is " + server.core);
-        return capableServersList.get(capableServersList.size()-1);
+        Server optimisedServer = capableServersList.get(capableServersList.size() - 1);
+        return optimisedServer;
     };
-    public Server getOptimisedServer2(){
-        capableServersList.sort(coreComparator);
-        Server current = null;
-        // first check if their is an active, booting or idle server below the threshold.
-        for(int i = capableServersList.size()-1; i >= 0; i--){
-            current = capableServersList.get(i);
-            if(current.state.equals("idle")) return current;
-            if(current.state.equals("active") && current.wJobs < waitingJobsThreshold) return current;
-            if(current.state.equals("booting") && current.wJobs < waitingJobsThreshold) return current;
-        }
-        //then assign it to the first inactive
-        for(int i = capableServersList.size()-1; i >= 0; i--){
-            current = capableServersList.get(i);
-            if(current.state.equals("inactive")) return current;
-        }
-        //if all are active, idle or booting and above waitingJobsThreshold sort by wJobs then push
-        capableServersList.sort(reverseWJobsComparator);
-        return capableServersList.get(capableServersList.size()-1);
-    };
-    public Server getOptimisedServer(){
-        Server currentServer;
-        Server optimisedServer;
-        // first sort capable by cheapest.
-        capableServersList.sort(costComparator);
-        /*
-        // find first active or idle capable servers that has jobs waiting less than threshold
-        for(int i = 0; i < capableServersList.size(); i++){
-            optimisedServer = capableServersList.get(i);
-            if(optimisedServer.state.equals("idle")) return optimisedServer;
-            if(optimisedServer.state.equals("active") && optimisedServer.wJobs < waitingJobsThreshold) return optimisedServer;
-            if(optimisedServer.state.equals("booting") && optimisedServer.wJobs < waitingJobsThreshold) return optimisedServer;
-        }
-        // turn on cheapest inactive server
-        for(int i = 0; i < capableServersList.size(); i++){
-            currentServer = capableServersList.get(i);
-            if(currentServer.state.equals("inactive")){
-                return currentServer;
-            }
-        }        
-        // run on cheapest server
-        for(int i = 0; i < capableServersList.size(); i++){
-            return capableServersList.get(i);
-        }
-        */
-        // if all else fails use first capable
-        return capableServersList.get(0);
-    };
-    public class TurnaroundComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
 
-            int serverATurnaround = 0;
-            if(serverA.state.equals("booting") || serverA.state.equals("inactive")){
-                serverATurnaround += serverA.bootupTime;
-            };
-            serverA.removeOldJobsFromJobTimes();
-            serverATurnaround += serverA.delayTime();
-
-            int serverBTurnaround = 0;
-            if(serverB.state.equals("booting") || serverB.state.equals("inactive")){
-                serverBTurnaround += serverB.bootupTime;
-            };
-            serverB.removeOldJobsFromJobTimes();
-            serverBTurnaround += serverB.delayTime();
-
-            return Integer.compare(serverATurnaround, serverBTurnaround);
-        };
-    }
-    public class ReverseCoreComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
-            return Integer.compare(serverB.core, serverA.core);
-        };
-    }
-    public class CoreComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
-            return Integer.compare(serverA.core, serverB.core);
-        };
-    }
-    public class CostComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
-            return (int) Double.compare(serverA.hourlyRate, serverB.hourlyRate);
-        };
-    }
-    public class WJobsComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
-            return Integer.compare(serverA.wJobs, serverB.wJobs);
-        };
-    }
-    public class ReverseWJobsComparator implements Comparator<Server>{
-        @Override
-        public int compare(Server serverA, Server serverB){
-            return Integer.compare(serverB.wJobs, serverA.wJobs);
-        };
-    }
-    public ReverseCoreComparator reverseCoreComparator = new ReverseCoreComparator();
-    public TurnaroundComparator turnaroundComaprator = new TurnaroundComparator();
-    public CostComparator costComparator = new CostComparator();
-    public WJobsComparator wJobsComparator = new WJobsComparator();
     public ReverseWJobsComparator reverseWJobsComparator = new ReverseWJobsComparator();
     public CoreComparator coreComparator = new CoreComparator();
-    public void getAndScheduleJobToFirstCapable(){
-        updateCurrentJob();
-        writeThenRead("GETS All " + currentJob.core + " " + currentJob.memory + " " + currentJob.disk);
-        writeThenRead("OK");
-        updateCapableServersList();
-        selectedServer = capableServersList.get(0);
-        print("First capable server is " + selectedServer.type + " " + selectedServer.serverID);
-        writeThenRead("OK");
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
-    };
 
-    public void updateCapableServersList(){
-        if(capableServersList == null) {
-            capableServersList = new ArrayList<Server>();
-        };
-        capableServersList.clear();
-        for (int i = 0; i < numberOfMessages; i++) {
-            String[] serverStringArray = getMessageFromEndSplit(i);
-            Server newServer = new Server();
-            newServer.type = serverStringArray[0];
-            newServer.serverID = Integer.parseInt(serverStringArray[1]);
-            newServer.state = serverStringArray[2];
-            newServer.curStartTime = Integer.parseInt(serverStringArray[3]);
-            newServer.core = Integer.parseInt(serverStringArray[4]);
-            newServer.memory = Integer.parseInt(serverStringArray[5]);
-            newServer.disk = Integer.parseInt(serverStringArray[6]);
-            newServer.wJobs = Integer.parseInt(serverStringArray[7]);
-            newServer.rJobs = Integer.parseInt(serverStringArray[8]);
-            capableServersList.add(0, newServer);
-        }
-    }
-
-    public void roundRobin(){
-        while (true) {
-                writeThenRead("REDY");
-                if (getLatestMessage().equals("NONE")) {
-                    break;
-                } else if (getLatestMessage().contains("JCPL")) {
-                    continue;
-                } else if (getLatestMessage().contains("JOBN")) {
-                    getAndScheduleJobToNextLargestServer();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            ;
-    }
-
-    public void getAndScheduleJobToNextLargestServer() {
-        updateCurrentJob();
-        writeThenRead("GETS All");
-        writeThenRead("OK");
-        if (largestServersList == null) {
-            updateAllServersList();
-            findLargestTypeThenUpdateLargestServersList();
-        }
-        ;
-        selectedServer = getCurrentLargestServer();
-        print("Current largest server is " + selectedServer.type + " " + selectedServer.serverID);
-        writeThenRead("OK");
-        writeThenRead("SCHD " + currentJob.jobID + " " + selectedServer.type + " " + selectedServer.serverID);
-    };
-
-    public void findLargestTypeThenUpdateLargestServersList() {
-        String largestType = "";
-        int largestCoreSize = 0;
-        for (Server server : allServersList) {
-            if (server.core > largestCoreSize) {
-                largestType = server.type;
-                largestCoreSize = server.core;
-            }
-        }
-        largestServersList = new ArrayList<Server>();
-        for (Server server : allServersList) {
-            if (server.type.equals(largestType)) {
-                largestServersList.add(server);
-            }
-        }
-        print("Largest server type is " + largestType + ", there are " + largestServersList.size() + " " + largestType
-                + " servers.");
-    };
-
+    /*
+     * This is a helper function to store information about jobs for scheduling
+     * jobs. It creates a new job object for each job, and pops the latestmessage
+     * off the message list to get information.
+     */
     public void updateCurrentJob() {
         currentJob = new Job();
         String[] jobStringArray = getLatestMessageSplit();
@@ -350,7 +186,14 @@ class MyClient {
         currentJob.memory = Integer.parseInt(jobStringArray[5]);
         currentJob.disk = Integer.parseInt(jobStringArray[6]);
     }
-    public void updateAllServersList(){
+
+    /*
+     * This function updates all servers after a GETS Capable call. Before anything
+     * it clears the capable list. It then starts by identifying which server object
+     * needs to be updated by matching on type and ID. It then updates key fields
+     * and adds to the capable ArrayList capableServersList.
+     */
+    public void updateAllServersList() {
         capableServersList.clear();
         Server server;
         String[] serverStringArray;
@@ -359,9 +202,10 @@ class MyClient {
             server = allServersList.get(0);
             String targetType = serverStringArray[0];
             int targetID = Integer.parseInt(serverStringArray[1]);
-            for(int j = 0; j < allServersList.size(); j++){
+            for (int j = 0; j < allServersList.size(); j++) {
                 server = allServersList.get(j);
-                if(targetType.equals(server.type) && server.serverID == targetID) break;
+                if (targetType.equals(server.type) && server.serverID == targetID)
+                    break;
             }
             server.state = serverStringArray[2];
             server.curStartTime = Integer.parseInt(serverStringArray[3]);
@@ -371,8 +215,17 @@ class MyClient {
             server.wJobs = Integer.parseInt(serverStringArray[7]);
             server.rJobs = Integer.parseInt(serverStringArray[8]);
             capableServersList.add(server);
-        };
+        }
+        ;
     }
+
+    /*
+     * This function calls a parser to get information on the servers by the config
+     * file in xml. It then reads in all servers from a "GETS All" call and creates
+     * a custom Server object by combining the two using the newServer from GETS All
+     * and the additional type attributes of "typeModel". Finally it adds it to the
+     * list of all servers.
+     */
     public void initialiseAllServersList() {
         allServersList = new ArrayList<Server>();
         HashMap<String, Server> serverTypeMap = Parser.getTypeMap();
@@ -399,16 +252,7 @@ class MyClient {
         }
     }
 
-    public Server getCurrentLargestServer() {
-        Server result = largestServersList.get(currentServerIndex);
-        if (currentServerIndex == largestServersList.size() - 1) {
-            currentServerIndex = 0;
-        } else {
-            currentServerIndex++;
-        }
-        return result;
-    };
-
+    /* The following methods are helper methods to access the serverMessageList. */
     public String getLatestMessage() {
         return serverMessageList.get(serverMessageList.size() - 1);
     }
@@ -450,6 +294,8 @@ class MyClient {
         ;
     };
 
+    // this method prints everything when verbose method is activated and is called
+    // mostly by writeThenRead.
     public void print(Object message) {
         if (printAllMessages) {
             System.out.println(message);
@@ -457,5 +303,3 @@ class MyClient {
     }
 
 };
-
-
